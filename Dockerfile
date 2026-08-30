@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/playwright/python:v1.46.0-focal
 
-# Install Google Chrome (so your script works with channel='chrome')
+# Install Google Chrome
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -10,16 +10,18 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
+# Verify Chrome installed correctly
+RUN google-chrome --version && which google-chrome
+
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Chromium too (for fallback)
 RUN playwright install chromium
 
 COPY . .
 
 EXPOSE 10000
 
-CMD gunicorn webserver:app --bind 0.0.0.0:$PORT
+CMD gunicorn webserver:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --threads 8
