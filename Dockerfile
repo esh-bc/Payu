@@ -8,4 +8,5 @@ RUN playwright install chromium
 
 COPY . .
 
-CMD ["gunicorn", "webserver:app", "--bind", "0.0.0.0:${PORT:-10000}"]
+# Use shell form so $PORT is properly substituted
+CMD gunicorn webserver:app --bind 0.0.0.0:$PORT
