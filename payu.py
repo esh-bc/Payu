@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-#t.me/sunilxd
-#t.me/sunilxd
+#t.me/iam_eshh
+#t.me/iam_eshh
 import asyncio
 import re
 import json
@@ -439,39 +439,40 @@ class PayUProcessor:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CLI
+# WEB API (Flask)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def main():
-    print("\n" + "="*60)
-    print("  PAYU By T.me/sunilxd")
-    print("="*60)
-    print("  Format: card_number|mm|yy|cvv")
-    print("  Commands: exit\n")
+from flask import Flask, request, jsonify
+import asyncio
 
-    while True:
-        try:
-            card_input = input("Card (number|mm|yy|cvv): ").strip()
-            if not card_input: continue
-            if card_input.lower() in ('exit', 'quit', 'q'): break
+app = Flask(__name__)
 
-            proxy_info = proxy_rotator.get_next()
-            processor = PayUProcessor(proxy_info=proxy_info)
-            result = await processor.process(card_input)
+@app.route('/pay', methods=['POST'])
+def handle_payment():
+    """
+    Expects JSON: { "card": "number|mm|yy|cvv" }
+    Returns payment result.
+    """
+    data = request.get_json()
+    if not data or 'card' not in data:
+        return jsonify({"error": "Missing 'card' field"}), 400
 
-            print("\n" + "="*60)
-            print("  RESULT")
-            print("="*60)
-            print(f"  Status  : {result.get('status', 'unknown').upper()}")
-            print(f"  Message : {result.get('value', 'N/A')}")
-            print(f"  Code    : {result.get('code', 'N/A')}")
-            print("="*60 + "\n")
+    card_input = data['card'].strip()
+    if not card_input:
+        return jsonify({"error": "Card field is empty"}), 400
 
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            break
-        except Exception as e:
-            print(f"Error: {e}")
+    # Get a proxy from the rotator
+    proxy_info = proxy_rotator.get_next()
+    processor = PayUProcessor(proxy_info=proxy_info)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    # Run the async processor inside the synchronous Flask view
+    try:
+        result = asyncio.run(processor.process(card_input))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify(result)
+
+# For local development (Render will use gunicorn instead)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
