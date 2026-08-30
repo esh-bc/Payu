@@ -1,23 +1,36 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import os
+from flask import Flask, request, jsonify
+import asyncio
+from payu import PayUProcessor, proxy_rotator
 
-class HealthHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == "/health":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"status": "ok"}')
-        else:
-            self.send_response(404)
-            self.end_headers()
+app = Flask(__name__)
 
-    def log_message(self, format, *args):
-        pass  # Suppress request logs (optional)
+@app.route('/pay', methods=['POST'])
+def handle_payment():
+    """
+    Expects JSON: { "card": "number|mm|yy|cvv" }
+    Returns payment result.
+    """
+    data = request.get_json()
+    if not data or 'card' not in data:
+        return jsonify({"error": "Missing 'card' field"}), 400
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), HealthHandler)
-    print(f"Server running on port {port}")
-    server.serve_forever()
-  
+    card_input = data['card'].strip()
+    if not card_input:
+        return jsonify({"error": "Card field is empty"}), 400
+
+    proxy_info = proxy_rotator.get_next()
+    processor = PayUProcessor(proxy_info=proxy_info)
+
+    try:
+        result = asyncio.run(processor.process(card_input))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify(result)
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok", "service": "PayU API"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
