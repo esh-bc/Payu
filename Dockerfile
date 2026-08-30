@@ -24,4 +24,4 @@ COPY . .
 
 EXPOSE 10000
 
-CMD gunicorn webserver:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --threads 8
+CMD gunicorn webserver:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --threads 4
