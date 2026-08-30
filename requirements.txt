@@ -1,5 +1,5 @@
 flask
 gunicorn
-playwright
+playwright==1.46.0
 requests
 urllib3
